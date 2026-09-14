@@ -1,0 +1,72 @@
+# HOINet 默认配置
+#
+# 全部取值对应论文 5.1 节（数据与场景）与 5.4 节（训练设置），与各 dataclass
+# 的默认值一致。命令行参数会覆盖本文件的同名项。
+#
+# 用法：
+#     python scripts/train.py --config configs/default.yaml
+#     python scripts/run_ablation.py --config configs/default.yaml
+#
+# 修改本文件不会影响 src/ 内 dataclass 的默认值，二者相互独立：dataclass 保证
+# 不提供配置文件时也能复现论文设置，本文件提供集中查看与批量修改的入口。
+
+# ---------- 场景规模，论文 5.1 节的 Scenic-MM 描述 ----------
+scenario:
+  n_regions: 18            # N，子区域数
+  n_cameras: 12            # M，摄像头路数（覆盖 12 个区域，另 6 个为缺口区）
+  n_sectors: 7             # L，基站扇区数
+  n_anchors_gate: 3        # 出入口闸机锚点数
+  n_anchors_manual: 2      # 人工抽样锚点位数
+  days: 60                 # 连续观测天数
+  steps_per_day: 96        # 每日基本步数（15 min 步长）
+  n_ext: 8                 # E，外部协变量维度
+  n_classes: 4             # K，风险等级数
+  base_occupancy: 0.55     # 平均承载率
+  night_floor: 0.30        # 夜间人数相对日间峰值的比例
+  target_ratios: [0.45, 0.30, 0.18, 0.07]   # 风险四类的目标占比
+  seed: 20260913
+
+# ---------- 模型结构，论文 3.5 节与 5.4 节 ----------
+model:
+  n_stages: 4              # S，展开阶段数
+  seq_len: 96              # T，序列长度
+  d_embed: 256             # d，反演层嵌入维度
+  cheb_k: 3                # 切比雪夫阶数
+  tcn_kernels: [3, 5]      # 时间卷积核大小 K1、K2
+  pi_rank: 8               # dz，渗透率低秩维度
+  pi_min: 0.05             # 渗透率物理下界
+  pi_max: 0.85             # 渗透率物理上界
+  readout_hidden: 128      # 风险读出头隐藏层维度
+  eps_curv: 1.0e-6         # 预条件的相对阻尼系数，实现补充
+  precond: full            # 式(18) 的预条件方式：full / diag / none
+  window_minutes: 15       # 信令聚合窗口长度
+
+# ---------- 训练设置，论文 5.4 节 ----------
+train:
+  lr: 0.0001               # Adam 学习率
+  batch_size: 8
+  max_epochs: 100
+  patience: 10             # 验证损失连续 10 轮不降即早停
+  min_delta: 0.00001
+  grad_clip: 5.0
+  seq_len: 96
+  stride: 4                # 滑窗步长；1 会显著增加样本数与训练时间
+  weight_decay: 0.0
+  eta_min_ratio: 0.01      # 余弦退火的最低学习率相对比例
+  log_every: 5
+
+# ---------- 数据划分，论文 5.2 节（60 天按 70% / 15% / 15%）----------
+splits:
+  train_days: 42
+  val_days: 9
+  test_days: 9
+
+# ---------- 损失权重，论文式(23)—式(26) 与 5.4 节的网格搜索取值 ----------
+loss:
+  lambda_risk: 0.1         # 风险分类损失权重
+  lambda_obs: 0.05         # 观测一致性权重
+  lambda_cons: 0.0001      # 跨模态一致性权重
+  beta: 1.0                # 式(24) 密度项系数
+  lambda_rel: 0.1          # 式(24) 相对误差项权重
+  lambda_ord: 0.1          # 式(25) 序数损失权重
+  eps: 0.001               # 式(24) 相对误差分母的稳定项
